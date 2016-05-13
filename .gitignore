@@ -1,0 +1,11 @@
+.DS_Store
+Icon?
+build
+*.mode*
+*.pbxuser
+*.perspectivev3
+xcuserdata
+.xccheckout
+*.log
+Carthage
+/asda.xcodeproj/project.xcworkspace/xcshareddata/
