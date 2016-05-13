@@ -34,8 +34,7 @@ class ViewController: UIViewController {
     let pageCache = Variable<[Observable<Page>]>([])
     let disposeBag = DisposeBag()
 
-    func myFrom<E>(sequence: [E]) -> Observable<E> {
-//        print("myFrom: \(sequence)")
+    func fromArray<E>(sequence: [E]) -> Observable<E> {
         return Observable.create { observer in
             for element in sequence {
                 observer.on(.Next(element))
@@ -46,24 +45,9 @@ class ViewController: UIViewController {
         }.shareReplay(1)
     }
 
-    func itemsFromPages(pages: [Page]) -> Observable<Item> {
-        return Observable.create { observer in
-            for page in pages {
-                for item in page.items {
-                    observer.on(.Next(item))
-                }
-            }
-
-            observer.on(.Completed)
-            return NopDisposable.instance
-        }.shareReplay(1)
-    }
-    
     func itemsFromPage(page: Observable<Page>) -> Observable<[Item]> {
-//        print("itemsFromPage: \(page)")
         return page.map {
             page -> [Item] in
-//            print("itemsFromPage.b: \(page), items=\(page.items)")
             return page.items
         }
     }
@@ -74,9 +58,28 @@ class ViewController: UIViewController {
         let o = pageCache.asObservable()
 
         o
-            .flatMap(myFrom)
+            .flatMap(fromArray)
             .flatMap(itemsFromPage)
-            .flatMap(myFrom)
+            .flatMap(fromArray)
+
+// this produces output I want, but is too wonky to use
+//            .scan([]) {
+//                lastSlice, newValue in
+//                return Array(lastSlice + [newValue])
+//            }
+//            .debounce(0.5, scheduler: ConcurrentMainScheduler.instance)
+
+// the internal print shows it doing what I want, but no result comes out the end
+            .reduce([Item]()) {
+                lastSlice, newValue in
+
+                var result = lastSlice as [Item]
+                result.append(newValue)
+
+                print("reducing: lastSlice=\(lastSlice.count), newValue=\(newValue)")
+                return result
+            }
+
             .subscribe(
             onNext: {
                 value in
@@ -90,7 +93,7 @@ class ViewController: UIViewController {
     func doStep(count: Int, max: Int, delay: NSTimeInterval) {
         let page = Variable<Page>(Page(name: "Page_\(count)", count: 3))
         var pages = pageCache.value
-        pages.append(page.asObservable().shareReplay(1))
+        pages.append(page.asObservable())
         print("publish new pages: \(pages.count)")
         pageCache.value = pages
 
